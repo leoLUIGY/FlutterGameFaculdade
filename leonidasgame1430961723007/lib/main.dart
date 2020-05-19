@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/time.dart';
+import 'package:flame/flame.dart';
+import 'dart:math';
 
-void main()
-{
-  runApp(GameWidget());
+void main() async {
+  Size size = await Flame.util.initialDimensions();
+  runApp(GameWidget(size));
 }
 Paint _white = Paint()..color= Color(0xFFFFFFFF);
 
@@ -18,9 +20,11 @@ class GameObject{
 
 class GameWidget extends StatelessWidget
 {
+  final Size size;
+  GameWidget(this.size);
   Widget build(BuildContext context)
   {
-    final game = SpaceShooterGame();
+    final game = SpaceShooterGame(size);
     return GestureDetector(
       onPanUpdate: (DragUpdateDetails details)
           {
@@ -35,17 +39,19 @@ class GameWidget extends StatelessWidget
 }
 
 class SpaceShooterGame extends Game{
+  final Size screenSize;
+  Random random = new Random();
   static const enemy_speed = 400;
   Timer enemyCreator;
   List<GameObject> enemies = [];
 
   GameObject player;
-  SpaceShooterGame()
+  SpaceShooterGame(this.screenSize)
   {
     player = GameObject()..position = Rect.fromLTWH(100, 100, 50, 50);
     enemyCreator = Timer(1.0, repeat:true, callback:(){
       enemies.add(
-        GameObject()..position = Rect.fromLTWH(0, 0, 50, 50)
+        GameObject()..position = Rect.fromLTWH((screenSize.width - 50)* random.nextDouble(), 0, 50, 50)
       );
     });
     enemyCreator.start();
