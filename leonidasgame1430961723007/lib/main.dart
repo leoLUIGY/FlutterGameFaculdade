@@ -8,15 +8,6 @@ void main() async {
   Size size = await Flame.util.initialDimensions();
   runApp(GameWidget(size));
 }
-Paint _white = Paint()..color= Color(0xFFFFFFFF);
-
-class GameObject{
-  Rect position;
-  void render (Canvas canvas)
-  {
-    canvas.drawRect(position, _white);
-  }
-}
 
 class GameWidget extends StatelessWidget
 {
@@ -26,6 +17,17 @@ class GameWidget extends StatelessWidget
   {
     final game = SpaceShooterGame(size);
     return GestureDetector(
+    onPanStart: (_){
+        game.beginFire();
+    },
+    onPanEnd: (_)
+    {
+        game.stopFire();
+    },
+    onPanCancel:()
+    {
+        game.stopFire();
+    },
       onPanUpdate: (DragUpdateDetails details)
           {
             game.onPlayerMove(details.delta);
@@ -38,12 +40,28 @@ class GameWidget extends StatelessWidget
   }
 }
 
+Paint _white = Paint()..color= Color(0xFFFFFFFF);
+class GameObject{
+  Rect position;
+  void render (Canvas canvas)
+  {
+    canvas.drawRect(position, _white);
+  }
+}
+
+class CollidableGameObject extends GameObject {
+    List<GameObject> collidingObjects=[];
+}
+
 class SpaceShooterGame extends Game{
   final Size screenSize;
   Random random = new Random();
-  static const enemy_speed = 400;
+  static const enemy_speed = 200;
+  static const shoot_speed = -500;
   Timer enemyCreator;
-  List<GameObject> enemies = [];
+  Timer shootCreator;
+  List<CollidableGameObject> enemies = [];
+  List<CollidableGameObject> shoots = [];
 
   GameObject player;
   SpaceShooterGame(this.screenSize)
@@ -51,22 +69,63 @@ class SpaceShooterGame extends Game{
     player = GameObject()..position = Rect.fromLTWH(100, 100, 50, 50);
     enemyCreator = Timer(1.0, repeat:true, callback:(){
       enemies.add(
-        GameObject()..position = Rect.fromLTWH((screenSize.width - 50)* random.nextDouble(), 0, 50, 50)
+        CollidableGameObject()..position = Rect.fromLTWH((screenSize.width - 50)* random.nextDouble(), 0, 50, 50)
       );
     });
     enemyCreator.start();
+    shootCreator = Timer(0.5, repeat:true, callback:(){
+        shoot.add(
+            CollidableGameObject
+            ..position = Rect.fromLTWH(
+            player.position.left+20,
+             player.position.top - 20, 20, 20)
+        );
+    });
   }
 
   void onPlayerMove(Offset delta)
   {
     player.position = player.position.translate(delta.dx, delta.dy);
   }
+
+  void beginFire()
+  {
+  shootCreator.start();
+  }
+
+  void stopFire()
+  {
+  shootCreator.stop();
+  }
+
   void update(double dt)
   {
     enemyCreator.update(dt);
+    shootCreator.update(dt);
+
   enemies.forEach((enemy){
     enemy.position = enemy.position.translate(0, enemy_speed * dt);
   });
+
+ shoots.forEach((shoot){
+    shoot.position = shoot.position.translate(0, shoot_speed*dt);
+ });
+
+ shoots.forEach((shoot){
+    enemies.forEach((enemy){
+        if(shoot.position.overlaps(enemy.position)){
+            shoot.collidingObjects.add(enemy);
+            enemy.collidingObjects.add(shoot);
+        }
+    });
+ });
+    enemies.removeWhere((enemy){
+       return enemy.position.top >= screenSize.height||enemy.collidingObject.isNotEmpty;
+    });
+    shoots.removeWhere((shoot){
+    return shoot.position.bottom <= 0||shoot.collidingObject.isNotEmpty;
+    });
+    }
   }
 
   void render(Canvas canvas)
@@ -74,6 +133,10 @@ class SpaceShooterGame extends Game{
   player.render(canvas);
   enemies.forEach((enemy){
     enemy.render(canvas);
+  });
+
+  shoots.forEach((shoot){
+    shoot.render(canvas);
   });
   }
 }
